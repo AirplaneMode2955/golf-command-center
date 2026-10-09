@@ -146,3 +146,64 @@ export function Bars({
     </div>
   );
 }
+
+/**
+ * Bars that grow left (better) or right (worse) from your overall average. `value` is the bucket's average,
+ * `center` is your overall average, and lower values are better. Small samples are faded and tagged.
+ */
+export function Diverging({
+  rows,
+  center,
+  min,
+  fmt,
+  label,
+  showN = true,
+  highlightBest = true,
+}: {
+  rows: { label: string; value: number | null; n: number }[];
+  center: number;
+  min: number;
+  fmt: (v: number) => string;
+  label: string;
+  showN?: boolean;
+  highlightBest?: boolean;
+}) {
+  const solid = rows.filter((r) => r.value !== null && r.n >= min);
+  const best = solid.length ? Math.min(...solid.map((r) => r.value as number)) : null;
+  const span = Math.max(1, ...rows.filter((r) => r.value !== null).map((r) => Math.abs((r.value as number) - center)));
+  return (
+    <div role="img" aria-label={label}>
+      {rows.map((r) => {
+        const d = r.value === null ? 0 : r.value - center;
+        const faint = r.value === null || r.n < min;
+        const isBest = highlightBest && r.value !== null && r.value === best;
+        const color = d <= 0 ? 'var(--good)' : 'var(--bad)';
+        return (
+          <div key={r.label} style={{ display: 'grid', gridTemplateColumns: 'minmax(78px, 112px) 1fr 96px', alignItems: 'center', gap: 10, minHeight: 36, opacity: faint ? 0.45 : 1 }}>
+            <span style={{ fontSize: 14, fontWeight: isBest ? 700 : 400, color: isBest ? 'var(--text)' : 'var(--dim)' }}>{r.label}</span>
+            <div style={{ position: 'relative', height: 14 }} aria-hidden>
+              <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: 'var(--line-2)' }} />
+              {r.value !== null ? (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 2,
+                    bottom: 2,
+                    borderRadius: 4,
+                    background: color,
+                    width: `${(Math.abs(d) / span) * 50}%`,
+                    left: d <= 0 ? `${50 - (Math.abs(d) / span) * 50}%` : '50%',
+                  }}
+                />
+              ) : null}
+            </div>
+            <span className="num" style={{ fontSize: 14, textAlign: 'right' }}>
+              {r.value === null ? '-' : fmt(r.value)}
+              {showN ? <span style={{ color: 'var(--dim-2)', fontSize: 12 }}> n={r.n}</span> : null}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

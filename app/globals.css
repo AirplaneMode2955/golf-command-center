@@ -129,6 +129,7 @@ svg text {
 }
 
 .tabs {
+  scrollbar-width: thin;
   display: flex;
   gap: 4px;
   padding: 4px;

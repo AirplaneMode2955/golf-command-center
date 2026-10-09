@@ -1,13 +1,19 @@
 'use client';
 
+import { useMemo } from 'react';
+import { shotsLost } from '@/lib/insights';
 import { holeEntries, type CourseSolve } from '@/lib/pars';
 import { avg, byYear } from '@/lib/stats';
 import type { Round } from '@/lib/types';
-import { Card } from './ui';
+import { Diverging } from './charts';
+import { Card, Stat } from './ui';
 
 export function Game({ rounds, solves }: { rounds: Round[]; solves: Map<string, CourseSolve> }) {
+  const sl = useMemo(() => shotsLost(rounds, solves), [rounds, solves]);
   if (rounds.length === 0) return <div className="empty">No rounds to show.</div>;
   const years = byYear(rounds);
+  const leak = sl && sl.byPar.length ? sl.byPar.reduce((m, p) => (p.over > m.over ? p : m)) : null;
+  const sgn = (v: number) => `${v > 0 ? '+' : v < 0 ? '-' : ''}${Math.abs(v).toFixed(1)}`;
 
   // Scoring by par type across every course where we could work out par.
   const byPar: Record<number, number[]> = { 3: [], 4: [], 5: [] };
@@ -57,6 +63,67 @@ export function Game({ rounds, solves }: { rounds: Round[]; solves: Map<string, 
         ) : null}
       </Card>
 
+      {sl ? (
+        <>
+          <div className="grid g2">
+            <Card
+              title="Where your strokes over par come from"
+              hint={`Strokes per 18 holes, from ${sl.holes.toLocaleString()} holes at ${sl.courses} courses where par could be worked out. Green gains strokes, red loses them.`}
+            >
+              <Diverging
+                label="Strokes gained and lost per 18 holes by result"
+                center={0}
+                min={0}
+                showN={false}
+                highlightBest={false}
+                fmt={sgn}
+                rows={[
+                  { label: 'Birdies or better', value: sl.gained, n: 99 },
+                  { label: 'Bogeys', value: sl.bogeys, n: 99 },
+                  { label: 'Double or worse', value: sl.doubles, n: 99 },
+                  { label: 'Net to par', value: sl.net, n: 99 },
+                ]}
+              />
+            </Card>
+            <Card title="By hole type" hint="Strokes over par per 18 holes, and how many of each hole you play per round.">
+              <Diverging
+                label="Strokes over par per 18 holes by hole type"
+                center={0}
+                min={0}
+                showN={false}
+                highlightBest={false}
+                fmt={sgn}
+                rows={sl.byPar.map((p) => ({ label: `Par ${p.par}s (${p.holesPer18.toFixed(1)}/round)`, value: p.over, n: 99 }))}
+              />
+            </Card>
+          </div>
+
+          <div className="grid g2">
+            <Stat
+              label="Cost of your blow-up holes"
+              value={`-${sl.blowups.toFixed(1)}`}
+              note={`You make ${sl.doublesCount.toFixed(1)} double bogeys or worse per 18 holes. Turn each into a bogey and you save ${sl.blowups.toFixed(1)} strokes a round.`}
+            />
+            {leak ? (
+              <Stat
+                label="Your biggest leak"
+                value={`Par ${leak.par}s`}
+                note={`They cost you ${leak.over.toFixed(1)} strokes per 18 holes (${leak.perHole > 0 ? '+' : ''}${leak.perHole.toFixed(2)} a hole, ${leak.holesPer18.toFixed(1)} of them a round).`}
+              />
+            ) : null}
+          </div>
+
+          <div className="grid g2">
+            <Card title="Holes that cost you most" hint="Average strokes over par per round. Holes with 10 or more rounds only.">
+              <HoleList items={sl.worst} />
+            </Card>
+            <Card title="Holes you play best" hint="Average strokes against par. Negative means you beat par on average.">
+              <HoleList items={sl.best} />
+            </Card>
+          </div>
+        </>
+      ) : null}
+
       <Card title="By year">
         <div className="rows">
           <div className="row dim" style={{ minHeight: 36 }}>
@@ -77,6 +144,30 @@ export function Game({ rounds, solves }: { rounds: Round[]; solves: Map<string, 
           ))}
         </div>
       </Card>
+    </div>
+  );
+}
+
+function HoleList({ items }: { items: { courseId: string; course: string; hole: number; par: number; avg: number; over: number; n: number }[] }) {
+  if (items.length === 0) return <div className="empty">Needs 10 or more rounds on a hole.</div>;
+  return (
+    <div className="rows">
+      {items.map((h) => (
+        <div className="row" key={`${h.courseId}-${h.hole}`}>
+          <div className="grow">
+            <div>
+              {h.course}, hole {h.hole}
+            </div>
+            <div className="dim">
+              Par {h.par}, averages {h.avg.toFixed(2)} over {h.n} rounds
+            </div>
+          </div>
+          <div className="end num" style={{ color: h.over > 0.3 ? 'var(--bad)' : h.over <= 0.05 ? 'var(--good)' : 'var(--warn)', fontWeight: 600 }}>
+            {h.over > 0 ? '+' : h.over < 0 ? '-' : ''}
+            {Math.abs(h.over).toFixed(2)}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

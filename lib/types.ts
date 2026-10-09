@@ -27,7 +27,7 @@ export type Round = {
 };
 
 export type GolfData = {
-  v: 2;
+  v: 3;
   importedAt: number;
   rounds: Round[];
   friends: string[];

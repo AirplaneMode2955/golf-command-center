@@ -8,9 +8,11 @@ import { Courses } from './Courses';
 import { Crew } from './Crew';
 import { Game } from './Game';
 import { Overview } from './Overview';
+import { Patterns } from './Patterns';
+import { Records } from './Records';
 import { Tour } from './Tour';
 
-const TABS = ['Overview', 'Courses', 'Game', 'Tour', 'Crew'] as const;
+const TABS = ['Overview', 'Courses', 'Game', 'Patterns', 'Records', 'Tour', 'Crew'] as const;
 type Tab = (typeof TABS)[number];
 
 export function Dashboard({
@@ -79,7 +81,16 @@ export function Dashboard({
 
       <div className="tabs" role="tablist" aria-label="Sections">
         {TABS.map((t) => (
-          <button key={t} role="tab" aria-selected={tab === t} className="tab" onClick={() => setTab(t)}>
+          <button
+            key={t}
+            role="tab"
+            aria-selected={tab === t}
+            className="tab"
+            onClick={(e) => {
+              setTab(t);
+              e.currentTarget.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+            }}
+          >
             {t}
           </button>
         ))}
@@ -88,7 +99,7 @@ export function Dashboard({
       {flagged.length > 0 && tab !== 'Crew' ? (
         <label className="check">
           <input type="checkbox" checked={includeFlagged} onChange={(e) => setIncludeFlagged(e.target.checked)} />
-          Include {flagged.length} rounds that look incomplete (missing scores or impossible totals)
+          Include {flagged.length} rounds that look incomplete or aren't a regular course (missing scores, impossible totals, par-3 courses)
         </label>
       ) : null}
 
@@ -96,6 +107,8 @@ export function Dashboard({
         {tab === 'Overview' && <Overview rounds={rounds} />}
         {tab === 'Courses' && <Courses rounds={rounds} solves={solves} />}
         {tab === 'Game' && <Game rounds={rounds} solves={solves} />}
+        {tab === 'Patterns' && <Patterns rounds={rounds} />}
+        {tab === 'Records' && <Records rounds={rounds} solves={solves} />}
         {tab === 'Tour' && <Tour rounds={rounds} />}
         {tab === 'Crew' && <Crew data={data} />}
       </div>

@@ -34,11 +34,12 @@ function direction(s: RawStats, hit: string, prefix: string, count: string): Dir
   };
 }
 
-function flagFor(holes: number, strokes: number, holeStrokes: number[]): string | null {
+function flagFor(holes: number, strokes: number, par: number, holeStrokes: number[]): string | null {
   if (holes !== 9 && holes !== 18) return 'Not a 9 or 18 hole round';
   if (holeStrokes.some((h) => !(h > 0))) return 'Missing hole scores';
   if (holeStrokes.reduce((a, b) => a + b, 0) !== strokes) return 'Totals do not add up';
   if (strokes < holes * 3.3) return 'Score looks too low to be a full round';
+  if (par < holes * 3.6) return 'Par-3 or short course';
   return null;
 }
 
@@ -70,7 +71,7 @@ function toRound(r: RawRound, clubs: Map<string, string>): Round | null {
     doubles: n(s.doubleBogeyOrWorse),
     fairways: direction(s, 'fairwayMiddles', 'fairway', 'fairwayHoleCount'),
     greens: direction(s, 'gir', 'gir', 'girHoleCount'),
-    flag: flagFor(r.holeStrokes.length, strokes, r.holeStrokes),
+    flag: flagFor(r.holeStrokes.length, strokes, strokes - toPar, r.holeStrokes),
   };
 }
 
@@ -95,5 +96,5 @@ export function parseArchive(json: unknown): GolfData {
     .map((f) => f.name)
     .filter((x): x is string => typeof x === 'string' && x.trim().length > 0);
 
-  return { v: 2, importedAt: Date.now(), rounds, friends };
+  return { v: 3, importedAt: Date.now(), rounds, friends };
 }

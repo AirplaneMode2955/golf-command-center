@@ -163,18 +163,26 @@ export function solveAll(rounds: Round[]): Map<string, CourseSolve> {
 
 export type HoleStat = { hole: number; par: number; avg: number; n: number };
 
-/** Every hole you played at a course with its solved par. Includes 9 hole rounds that fit one of the nines. */
-export function holeEntries(solve: CourseSolve, rounds: Round[]): { hole: number; par: number; strokes: number }[] {
-  const out: { hole: number; par: number; strokes: number }[] = [];
+export type PlacedHole = { hole: number; par: number; strokes: number };
+export type PlacedRound = { round: Round; holes: PlacedHole[] };
+
+/** Rounds that fit a solved layout, with each hole's number and par attached. Holes are in playing order. */
+export function placedRounds(solve: CourseSolve, rounds: Round[]): PlacedRound[] {
+  const out: PlacedRound[] = [];
   for (const r of rounds) {
     const off = solve.offsets.get(r.id);
     if (off === undefined || r.flag) continue;
-    r.holeStrokes.forEach((strokes, i) => {
-      const idx = off + i;
-      out.push({ hole: idx + 1, par: solve.layout.pars[idx], strokes });
+    out.push({
+      round: r,
+      holes: r.holeStrokes.map((strokes, i) => ({ hole: off + i + 1, par: solve.layout.pars[off + i], strokes })),
     });
   }
   return out;
+}
+
+/** Every hole you played at a course with its solved par. Includes 9 hole rounds that fit one of the nines. */
+export function holeEntries(solve: CourseSolve, rounds: Round[]): PlacedHole[] {
+  return placedRounds(solve, rounds).flatMap((p) => p.holes);
 }
 
 export function holeStats(solve: CourseSolve, rounds: Round[]): HoleStat[] {
