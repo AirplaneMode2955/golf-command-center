@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+.env*.local
+.vercel
+next-env.d.ts
+*.tsbuildinfo
+
+# Personal golf data must never be committed
+/data
+/scratch
+*archive*.json
+18Birdies*
+
+AGENTS.md
+CLAUDE.md
