@@ -1,14 +1,16 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import { solveAll } from '@/lib/pars';
 import { fmtDate, usableRounds } from '@/lib/stats';
 import type { GolfData } from '@/lib/types';
 import { Courses } from './Courses';
 import { Crew } from './Crew';
 import { Game } from './Game';
 import { Overview } from './Overview';
+import { Tour } from './Tour';
 
-const TABS = ['Overview', 'Courses', 'Game', 'Crew'] as const;
+const TABS = ['Overview', 'Courses', 'Game', 'Tour', 'Crew'] as const;
 type Tab = (typeof TABS)[number];
 
 export function Dashboard({
@@ -27,6 +29,7 @@ export function Dashboard({
   const input = useRef<HTMLInputElement>(null);
 
   const rounds = useMemo(() => usableRounds(data, includeFlagged), [data, includeFlagged]);
+  const solves = useMemo(() => solveAll(data.rounds), [data]);
   const flagged = data.rounds.filter((r) => r.flag);
   const first = data.rounds[0].date;
   const last = data.rounds[data.rounds.length - 1].date;
@@ -91,8 +94,9 @@ export function Dashboard({
 
       <div style={{ marginTop: 8 }}>
         {tab === 'Overview' && <Overview rounds={rounds} />}
-        {tab === 'Courses' && <Courses rounds={rounds} />}
-        {tab === 'Game' && <Game rounds={rounds} />}
+        {tab === 'Courses' && <Courses rounds={rounds} solves={solves} />}
+        {tab === 'Game' && <Game rounds={rounds} solves={solves} />}
+        {tab === 'Tour' && <Tour rounds={rounds} />}
         {tab === 'Crew' && <Crew data={data} />}
       </div>
     </div>

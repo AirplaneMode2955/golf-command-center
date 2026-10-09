@@ -1,78 +1,61 @@
 'use client';
 
-import { addDirection, byYear, pct, scoringMix } from '@/lib/stats';
+import { holeEntries, type CourseSolve } from '@/lib/pars';
+import { avg, byYear } from '@/lib/stats';
 import type { Round } from '@/lib/types';
 import { Card } from './ui';
 
-const MIX = [
-  { key: 'eagles', label: 'Eagle or better', color: '#fde047' },
-  { key: 'birdies', label: 'Birdie', color: '#4ade80' },
-  { key: 'pars', label: 'Par', color: '#7dd3fc' },
-  { key: 'bogeys', label: 'Bogey', color: '#fb923c' },
-  { key: 'doubles', label: 'Double or worse', color: '#fb7185' },
-] as const;
-
-function Cross({ title, what, d, hitLabel, topLabel, bottomLabel }: {
-  title: string;
-  what: string;
-  d: ReturnType<typeof addDirection>;
-  hitLabel: string;
-  topLabel: string;
-  bottomLabel: string;
-}) {
-  if (d.count === 0) return <Card title={title}><div className="empty">No data tracked.</div></Card>;
-  const misses = d.count - d.hit;
-  const dirs = d.left + d.right + d.short + d.long;
-  const p = (v: number) => `${pct(v, dirs).toFixed(0)}%`;
-  return (
-    <Card
-      title={title}
-      hint={`${what} Hit ${d.hit.toLocaleString()} of ${d.count.toLocaleString()} holes over ${d.rounds} rounds. The app recorded a miss direction for ${dirs.toLocaleString()} of ${misses.toLocaleString()} misses, and the split below is of those.`}
-    >
-      <div className="cross" role="group" aria-label={`${title} outcomes`}>
-        <div style={{ visibility: 'hidden' }} />
-        <div><b className="num">{p(d.long)}</b><span>{topLabel}</span></div>
-        <div style={{ visibility: 'hidden' }} />
-        <div><b className="num">{p(d.left)}</b><span>Left</span></div>
-        <div className="mid"><b className="num" style={{ color: 'var(--accent)' }}>{pct(d.hit, d.count).toFixed(0)}%</b><span>{hitLabel}</span></div>
-        <div><b className="num">{p(d.right)}</b><span>Right</span></div>
-        <div style={{ visibility: 'hidden' }} />
-        <div><b className="num">{p(d.short)}</b><span>{bottomLabel}</span></div>
-        <div style={{ visibility: 'hidden' }} />
-      </div>
-    </Card>
-  );
-}
-
-export function Game({ rounds }: { rounds: Round[] }) {
+export function Game({ rounds, solves }: { rounds: Round[]; solves: Map<string, CourseSolve> }) {
   if (rounds.length === 0) return <div className="empty">No rounds to show.</div>;
-  const mix = scoringMix(rounds);
-  const fw = addDirection(rounds, 'fairways');
-  const gir = addDirection(rounds, 'greens');
   const years = byYear(rounds);
+
+  // Scoring by par type across every course where we could work out par.
+  const byPar: Record<number, number[]> = { 3: [], 4: [], 5: [] };
+  let courseCount = 0;
+  for (const [id, s] of solves) {
+    const mine = rounds.filter((r) => r.courseId === id);
+    const e = holeEntries(s, mine);
+    if (e.length) courseCount++;
+    for (const x of e) byPar[x.par]?.push(x.strokes);
+  }
+  const parRows = [3, 4, 5].map((p) => ({ par: p, avg: avg(byPar[p]), n: byPar[p].length }));
+  const holesTotal = parRows.reduce((a, r) => a + r.n, 0);
 
   return (
     <div className="stack">
-      <Card title="Hole results" hint={`Every hole you have scored, ${mix.holes.toLocaleString()} in total.`}>
-        <div className="mixbar" role="img" aria-label="Share of holes by result">
-          {MIX.map((m) => (
-            <div key={m.key} style={{ width: `${pct(mix[m.key], mix.holes)}%`, background: m.color }} title={`${m.label}: ${mix[m.key]}`} />
-          ))}
-        </div>
-        <div className="legend">
-          {MIX.map((m) => (
-            <span key={m.key}>
-              <i style={{ background: m.color }} />
-              {m.label} <b className="num" style={{ color: 'var(--text)' }}>{pct(mix[m.key], mix.holes).toFixed(1)}%</b>
-            </span>
-          ))}
-        </div>
+      <Card
+        title="Scoring by hole type"
+        hint={
+          holesTotal > 0
+            ? `Your average score on par 3s, 4s and 5s, from ${holesTotal.toLocaleString()} holes at ${courseCount} courses where par could be worked out from your scorecards.`
+            : 'Not enough rounds at one course to work out hole pars yet.'
+        }
+      >
+        {holesTotal > 0 ? (
+          <div className="grid g3s">
+            {parRows.map((r) => {
+              const d = r.avg === null ? 0 : r.avg - r.par;
+              const color = d <= 0.05 ? 'var(--good)' : d > 0.3 ? 'var(--bad)' : 'var(--warn)';
+              const max = 6;
+              return (
+                <div key={r.par} className="card" style={{ background: 'var(--card-2)' }}>
+                  <div className="sub">Par {r.par}</div>
+                  <div className="num" style={{ fontSize: 34, fontWeight: 700, color }}>
+                    {r.avg === null ? '-' : r.avg.toFixed(2)}
+                  </div>
+                  <div className="sub num">
+                    {r.avg === null ? '' : `${d >= 0 ? '+' : '-'}${Math.abs(d).toFixed(2)} vs par, ${r.n} holes`}
+                  </div>
+                  <div style={{ position: 'relative', height: 10, background: 'var(--card)', borderRadius: 5, marginTop: 12 }} aria-hidden>
+                    <div style={{ width: `${((r.avg ?? 0) / max) * 100}%`, height: '100%', background: color, borderRadius: 5 }} />
+                    <div style={{ position: 'absolute', left: `${(r.par / max) * 100}%`, top: -3, bottom: -3, width: 2, background: 'var(--text)' }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
       </Card>
-
-      <div className="grid g2">
-        <Cross title="Fairways" what="Where your tee shots end up." d={fw} hitLabel="Hit" topLabel="Long" bottomLabel="Short" />
-        <Cross title="Greens in regulation" what="Where your approaches end up." d={gir} hitLabel="On green" topLabel="Long" bottomLabel="Short" />
-      </div>
 
       <Card title="By year">
         <div className="rows">

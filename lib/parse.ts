@@ -30,6 +30,7 @@ function direction(s: RawStats, hit: string, prefix: string, count: string): Dir
     short: n(s[`${prefix}Shorts`]),
     long: n(s[`${prefix}Longs`]),
     count: n(s[count]),
+    noChance: n(s[`${prefix}NoChances`]),
   };
 }
 
@@ -94,5 +95,5 @@ export function parseArchive(json: unknown): GolfData {
     .map((f) => f.name)
     .filter((x): x is string => typeof x === 'string' && x.trim().length > 0);
 
-  return { v: 1, importedAt: Date.now(), rounds, friends };
+  return { v: 2, importedAt: Date.now(), rounds, friends };
 }

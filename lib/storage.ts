@@ -1,13 +1,13 @@
 import type { GolfData } from './types';
 
-const KEY = 'golf-command-center:v1';
+const KEY = 'golf-command-center:v1'; // same key; the payload carries its own version
 
 export function loadSaved(): GolfData | null {
   try {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return null;
     const data = JSON.parse(raw) as GolfData;
-    return data?.v === 1 && Array.isArray(data.rounds) ? data : null;
+    return data?.v === 2 && Array.isArray(data.rounds) ? data : null;
   } catch {
     return null;
   }

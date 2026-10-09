@@ -1,19 +1,67 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { avg, courses, fmtDate, fmtToPar, holeAverages } from '@/lib/stats';
+import { holeStats, type CourseSolve } from '@/lib/pars';
+import { avg, courses, fmtDate, fmtToPar } from '@/lib/stats';
 import type { Round } from '@/lib/types';
 import { Card, Stat } from './ui';
 
-export function Courses({ rounds }: { rounds: Round[] }) {
+/** Green at or under par, amber a little over, red clearly over. */
+function tone(diff: number) {
+  if (diff <= 0.05) return { color: 'var(--good)', bg: 'rgba(74,222,128,0.10)', edge: true };
+  if (diff > 0.3) return { color: 'var(--bad)', bg: 'rgba(251,113,133,0.10)', edge: true };
+  return { color: 'var(--warn)', bg: 'transparent', edge: false };
+}
+
+export function Courses({ rounds, solves }: { rounds: Round[]; solves: Map<string, CourseSolve> }) {
   const list = useMemo(() => courses(rounds), [rounds]);
   const [picked, setPicked] = useState<string | null>(null);
   if (list.length === 0) return <div className="empty">No rounds to show.</div>;
 
   const cur = list.find((c) => c.id === picked) ?? list[0];
   const mine = rounds.filter((r) => r.courseId === cur.id);
-  const holes = cur.rounds18.length >= 3 ? holeAverages(cur.rounds18) : null;
-  const mean = holes ? (avg(holes.map((h) => h.avg)) as number) : 0;
+  const solve = solves.get(cur.id) ?? null;
+  const holes = solve ? holeStats(solve, mine) : null;
+  const placed = solve ? mine.filter((r) => solve.offsets.has(r.id)).length : 0;
+  const front = holes ? holes.slice(0, 9) : [];
+  const back = holes ? holes.slice(9) : [];
+
+  // Without par we can still show plain averages, but only for 18 hole rounds.
+  const plain =
+    !solve && cur.rounds18.length >= 3
+      ? Array.from({ length: 18 }, (_, i) => ({ hole: i + 1, avg: avg(cur.rounds18.map((r) => r.holeStrokes[i])) ?? 0 }))
+      : null;
+
+  const cell = (h: { hole: number; par: number; avg: number; n: number }) => {
+    if (h.n === 0) {
+      return (
+        <div key={h.hole} className="hole">
+          <span>
+            {h.hole} · Par {h.par}
+          </span>
+          <b className="num" style={{ color: 'var(--dim-2)' }}>
+            -
+          </b>
+        </div>
+      );
+    }
+    const d = h.avg - h.par;
+    const t = tone(d);
+    return (
+      <div key={h.hole} className="hole" style={{ background: t.bg, borderColor: t.edge ? t.color : undefined }} title={`${h.n} rounds`}>
+        <span>
+          {h.hole} · Par {h.par}
+        </span>
+        <b className="num" style={{ color: t.color }}>
+          {h.avg.toFixed(2)}
+        </b>
+        <span className="num" style={{ color: t.color }}>
+          {d > 0 ? '+' : d < 0 ? '-' : ''}
+          {Math.abs(d).toFixed(2)}
+        </span>
+      </div>
+    );
+  };
 
   return (
     <div className="grid split">
@@ -37,25 +85,40 @@ export function Courses({ rounds }: { rounds: Round[] }) {
           </div>
         </Card>
 
-        <Card title="Hole by hole" hint="Your average strokes per hole. Green is easier than your usual hole here, red is harder.">
+        <Card
+          title="Hole by hole"
+          hint="Your average strokes on each hole, and how far that is from par. Green is par or better, amber is up to 0.3 over, red is more than 0.3 over."
+        >
           {holes ? (
-            <div className="holes">
-              {holes.map((h) => {
-                const d = h.avg - mean;
-                const color = d > 0.15 ? 'var(--bad)' : d < -0.15 ? 'var(--good)' : 'var(--dim)';
-                const bg = d > 0.15 ? 'rgba(251,113,133,0.10)' : d < -0.15 ? 'rgba(74,222,128,0.10)' : 'transparent';
-                return (
-                  <div key={h.hole} className="hole" style={{ background: bg, borderColor: bg === 'transparent' ? undefined : color }}>
+            <>
+              <div className="holes">{front.map(cell)}</div>
+              {back.length > 0 ? (
+                <div className="holes" style={{ marginTop: 6 }}>
+                  {back.map(cell)}
+                </div>
+              ) : null}
+              <div className="sub" style={{ marginTop: 10 }}>
+                Pars are worked out from your scorecards ({Math.round((solve as CourseSolve).layout.confidence * 100)}% of your rounds here agree with them), so they
+                may differ from the course&apos;s printed card. {placed} of {mine.length} rounds are included
+                {(solve as CourseSolve).layout.holes === 18 ? ', with 9-hole rounds placed on the front or back nine where they fit' : ''}.
+              </div>
+            </>
+          ) : plain ? (
+            <>
+              <div className="holes">
+                {plain.map((h) => (
+                  <div key={h.hole} className="hole">
                     <span>{h.hole}</span>
-                    <b className="num" style={{ color }}>
-                      {h.avg.toFixed(1)}
-                    </b>
+                    <b className="num">{h.avg.toFixed(2)}</b>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+              <div className="sub" style={{ marginTop: 10 }}>
+                No colors here: the archive has no par per hole, and there aren&apos;t enough rounds of the same length at this course (5 or more) to work it out.
+              </div>
+            </>
           ) : (
-            <div className="empty">Needs at least 3 full 18-hole rounds here. Nine-hole rounds are skipped because the archive doesn&apos;t say which nine.</div>
+            <div className="empty">Needs 5 or more rounds of the same length at a course to work out par for each hole. Nine-hole rounds are matched to the front or back nine once a course&apos;s pars are known.</div>
           )}
         </Card>
 

@@ -1,6 +1,6 @@
 /** Cleaned, privacy-trimmed model. Nothing from the account block (email, phone, birth year) is kept. */
 
-export type Direction = { hit: number; left: number; right: number; short: number; long: number; count: number };
+export type Direction = { hit: number; left: number; right: number; short: number; long: number; count: number; noChance: number };
 
 export type Round = {
   id: string;
@@ -27,7 +27,7 @@ export type Round = {
 };
 
 export type GolfData = {
-  v: 1;
+  v: 2;
   importedAt: number;
   rounds: Round[];
   friends: string[];
