@@ -237,6 +237,32 @@ export function records(rounds: Round[], solves: Map<string, CourseSolve>, hcp: 
 }
 
 /* ------------------------------------------------------------------ */
+/* Rounds worth a second look                                          */
+/* ------------------------------------------------------------------ */
+
+export type Candidate = { round: Round; indexBefore: number; margin: number };
+
+/**
+ * Rounds that beat your handicap index at the time by 5 or more strokes. Plenty are real hot rounds, but scrambles and
+ * best-ball events show up here too, and the archive does not say which format a round was, so the user decides.
+ */
+export function reviewCandidates(rounds: Round[], series: HcpPoint[]): Candidate[] {
+  const out: Candidate[] = [];
+  for (const r of rounds) {
+    if (r.flag || r.mark || r.diff === null) continue;
+    let before: number | null = null;
+    for (const p of series) {
+      if (p.ts < r.ts) before = p.index;
+      else break;
+    }
+    if (before === null) continue;
+    const margin = before - r.diff;
+    if (margin >= 5) out.push({ round: r, indexBefore: before, margin });
+  }
+  return out.sort((a, b) => b.margin - a.margin).slice(0, 8);
+}
+
+/* ------------------------------------------------------------------ */
 /* 3. When you play best                                               */
 /* ------------------------------------------------------------------ */
 

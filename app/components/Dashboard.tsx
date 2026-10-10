@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { solveAll } from '@/lib/pars';
-import { fmtDate, handicapSeries, usableRounds } from '@/lib/stats';
+import { applyMark, fmtDate, handicapSeries, usableRounds } from '@/lib/stats';
+import { loadMarks, saveMarks, type Marks } from '@/lib/storage';
 import type { GolfData } from '@/lib/types';
 import { Courses } from './Courses';
 import { Crew } from './Crew';
@@ -10,13 +11,14 @@ import { Game } from './Game';
 import { Overview } from './Overview';
 import { Patterns } from './Patterns';
 import { Records } from './Records';
+import { Rounds } from './Rounds';
 import { Tour } from './Tour';
 
-const TABS = ['Overview', 'Courses', 'Game', 'Patterns', 'Records', 'Tour', 'Crew'] as const;
+const TABS = ['Overview', 'Courses', 'Game', 'Patterns', 'Records', 'Tour', 'Rounds', 'Crew'] as const;
 type Tab = (typeof TABS)[number];
 
 export function Dashboard({
-  data,
+  data: parsed,
   onReplace,
   onClear,
   error,
@@ -28,8 +30,20 @@ export function Dashboard({
 }) {
   const [tab, setTab] = useState<Tab>('Overview');
   const [includeFlagged, setIncludeFlagged] = useState(false);
+  const [marks, setMarks] = useState<Marks>({});
+  useEffect(() => setMarks(loadMarks()), []);
   const input = useRef<HTMLInputElement>(null);
 
+  // The parsed archive with the user's scramble/event decisions applied on top.
+  const data = useMemo(() => ({ ...parsed, rounds: parsed.rounds.map((r) => applyMark(r, marks[r.id])) }), [parsed, marks]);
+  const setMark = (id: string, m: 'event' | 'regular' | null) =>
+    setMarks((prev) => {
+      const next = { ...prev };
+      if (m) next[id] = m;
+      else delete next[id];
+      saveMarks(next);
+      return next;
+    });
   const rounds = useMemo(() => usableRounds(data, includeFlagged), [data, includeFlagged]);
   const solves = useMemo(() => solveAll(data.rounds), [data]);
   const hcp = useMemo(() => handicapSeries(data.rounds), [data]);
@@ -97,11 +111,16 @@ export function Dashboard({
         ))}
       </div>
 
-      {flagged.length > 0 && tab !== 'Crew' ? (
-        <label className="check">
-          <input type="checkbox" checked={includeFlagged} onChange={(e) => setIncludeFlagged(e.target.checked)} />
-          Include {flagged.length} rounds that look incomplete or aren't a regular course (missing scores, impossible totals, par-3 courses)
-        </label>
+      {flagged.length > 0 && tab !== 'Crew' && tab !== 'Rounds' ? (
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <label className="check">
+            <input type="checkbox" checked={includeFlagged} onChange={(e) => setIncludeFlagged(e.target.checked)} />
+            Include {flagged.length} rounds that are left out (scrambles and events, incomplete rounds, par-3 courses)
+          </label>
+          <button className="btn" onClick={() => setTab('Rounds')}>
+            Review rounds
+          </button>
+        </div>
       ) : null}
 
       <div style={{ marginTop: 8 }}>
@@ -111,6 +130,7 @@ export function Dashboard({
         {tab === 'Patterns' && <Patterns rounds={rounds} />}
         {tab === 'Records' && <Records rounds={rounds} solves={solves} hcp={hcp} />}
         {tab === 'Tour' && <Tour rounds={rounds} />}
+        {tab === 'Rounds' && <Rounds rounds={data.rounds} hcp={hcp} onMark={setMark} />}
         {tab === 'Crew' && <Crew data={data} />}
       </div>
     </div>

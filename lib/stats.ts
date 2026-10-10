@@ -1,3 +1,4 @@
+import { FLAG_EVENT, FLAG_SHORT, FLAG_TEAM } from './flags';
 import type { Direction, GolfData, Round } from './types';
 
 export const avg = (xs: number[]): number | null => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
@@ -151,7 +152,7 @@ export type HcpPoint = { ts: number; date: string; year: number; index: number }
  * index, so this rebuilds it. It uses every round that has a differential, 9-hole rounds included.
  */
 export function handicapSeries(all: Round[]): HcpPoint[] {
-  const ds = all.filter((r) => r.diff !== null).sort((a, b) => a.ts - b.ts);
+  const ds = all.filter((r) => r.diff !== null && r.flag !== FLAG_TEAM && r.flag !== FLAG_EVENT).sort((a, b) => a.ts - b.ts);
   const out: HcpPoint[] = [];
   for (let i = 0; i < ds.length; i++) {
     const win = ds.slice(Math.max(0, i - 19), i + 1).map((r) => r.diff as number);
@@ -177,4 +178,11 @@ export function handicapSummary(series: HcpPoint[]) {
 export function indexAtYearEnd(series: HcpPoint[], year: number): number | null {
   const inYr = series.filter((p) => p.year <= year);
   return inYr.length ? inYr[inYr.length - 1].index : null;
+}
+
+/** Layer the user's decisions over a parsed round. "event" always leaves it out; "regular" can bring back an auto-flagged team or short-course round. */
+export function applyMark(r: Round, mark: 'event' | 'regular' | undefined): Round {
+  if (mark === 'event') return { ...r, flag: FLAG_EVENT, mark };
+  if (mark === 'regular' && (r.flag === FLAG_TEAM || r.flag === FLAG_SHORT)) return { ...r, flag: null, mark };
+  return r;
 }

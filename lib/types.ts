@@ -28,10 +28,12 @@ export type Round = {
   greens: Direction;
   /** Why this round is excluded from stats by default, or null if it looks fine. */
   flag: string | null;
+  /** What the user decided about this round in the app. Not part of the archive; applied on top of the parsed data. */
+  mark?: 'event' | 'regular';
 };
 
 export type GolfData = {
-  v: 4;
+  v: 5;
   importedAt: number;
   rounds: Round[];
   friends: string[];

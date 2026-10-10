@@ -1,3 +1,4 @@
+import { FLAG_SHORT, FLAG_TEAM } from './flags';
 import type { Direction, GolfData, Round } from './types';
 
 type RawStats = Partial<Record<string, number>>;
@@ -38,8 +39,9 @@ function flagFor(holes: number, strokes: number, par: number, holeStrokes: numbe
   if (holes !== 9 && holes !== 18) return 'Not a 9 or 18 hole round';
   if (holeStrokes.some((h) => !(h > 0))) return 'Missing hole scores';
   if (holeStrokes.reduce((a, b) => a + b, 0) !== strokes) return 'Totals do not add up';
-  if (strokes < holes * 3.3) return 'Score looks too low to be a full round';
-  if (par < holes * 3.6) return 'Par-3 or short course';
+  // A full individual round is never this far under par; scrambles and best-ball scores are.
+  if (strokes < holes * 3.3 || strokes - par <= -holes / 2) return FLAG_TEAM;
+  if (par < holes * 3.6) return FLAG_SHORT;
   return null;
 }
 
@@ -97,5 +99,5 @@ export function parseArchive(json: unknown): GolfData {
     .map((f) => f.name)
     .filter((x): x is string => typeof x === 'string' && x.trim().length > 0);
 
-  return { v: 4, importedAt: Date.now(), rounds, friends };
+  return { v: 5, importedAt: Date.now(), rounds, friends };
 }
