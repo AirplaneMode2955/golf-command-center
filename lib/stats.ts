@@ -88,40 +88,31 @@ export function addDirection(rounds: Round[], key: 'fairways' | 'greens'): Direc
   return t;
 }
 
-export type YearRow = { year: number; rounds: number; avg18: number | null; best18: number | null; hcp: number | null };
+export type YearRow = { year: number; rounds: number; avg18: number | null; best18: number | null };
 
 export function byYear(rounds: Round[]): YearRow[] {
   const years = [...new Set(rounds.map((r) => r.year))].sort((a, b) => a - b);
   return years.map((year) => {
     const rs = rounds.filter((r) => r.year === year);
     const r18 = rs.filter((r) => r.holes === 18);
-    const withH = rs.filter((r) => r.handicap !== null);
     return {
       year,
       rounds: rs.length,
       avg18: avg(r18.map((r) => r.strokes)),
       best18: r18.length ? Math.min(...r18.map((r) => r.strokes)) : null,
-      hcp: withH.length ? (withH[withH.length - 1].handicap as number) : null,
     };
   });
 }
 
 export function headline(rounds: Round[]) {
   const r18 = rounds.filter((r) => r.holes === 18);
-  const withH = rounds.filter((r) => r.handicap !== null);
   const last10 = r18.slice(-10);
   const best = r18.reduce<Round | null>((b, r) => (b === null || r.strokes < b.strokes ? r : b), null);
-  const lowH = withH.reduce<Round | null>((b, r) => (b === null || (r.handicap as number) < (b.handicap as number) ? r : b), null);
-  const now = withH.length ? withH[withH.length - 1] : null;
   return {
     total: rounds.length,
     count18: r18.length,
     count9: rounds.length - r18.length,
     courses: new Set(rounds.map((r) => r.courseId)).size,
-    handicapNow: now?.handicap ?? null,
-    handicapNowDate: now?.date ?? null,
-    handicapLow: lowH?.handicap ?? null,
-    handicapLowDate: lowH?.date ?? null,
     best,
     avgLast10: avg(last10.map((r) => r.strokes)),
     avgAll18: avg(r18.map((r) => r.strokes)),
@@ -150,4 +141,40 @@ export function perEighteen(mix: Mix) {
 
 export function inYear(rounds: Round[], year: number | null): Round[] {
   return year === null ? rounds : rounds.filter((r) => r.year === year);
+}
+
+export type HcpPoint = { ts: number; date: string; year: number; index: number };
+
+/**
+ * Handicap index after each round, the World Handicap System way: the average of the lowest differentials among your
+ * last 20 rounds (8 of 20, fewer when you have fewer rounds). 18Birdies only stores each round's differential, not the
+ * index, so this rebuilds it. It uses every round that has a differential, 9-hole rounds included.
+ */
+export function handicapSeries(all: Round[]): HcpPoint[] {
+  const ds = all.filter((r) => r.diff !== null).sort((a, b) => a.ts - b.ts);
+  const out: HcpPoint[] = [];
+  for (let i = 0; i < ds.length; i++) {
+    const win = ds.slice(Math.max(0, i - 19), i + 1).map((r) => r.diff as number);
+    const n = win.length;
+    if (n < 3) continue;
+    const k = n >= 20 ? 8 : n === 19 ? 7 : n >= 17 ? 6 : n >= 15 ? 5 : n >= 12 ? 4 : n >= 9 ? 3 : n >= 6 ? 2 : 1;
+    const adj = n === 3 ? -2 : n === 4 || n === 6 ? -1 : 0;
+    const lowest = [...win].sort((a, b) => a - b).slice(0, k);
+    const index = Math.round(((sum(lowest) / k) + adj) * 10) / 10;
+    out.push({ ts: ds[i].ts, date: ds[i].date, year: ds[i].year, index });
+  }
+  return out;
+}
+
+export function handicapSummary(series: HcpPoint[]) {
+  if (series.length === 0) return null;
+  const now = series[series.length - 1];
+  const low = series.reduce((b, p) => (p.index < b.index ? p : b));
+  const high = series.reduce((b, p) => (p.index > b.index ? p : b));
+  return { now, low, high };
+}
+
+export function indexAtYearEnd(series: HcpPoint[], year: number): number | null {
+  const inYr = series.filter((p) => p.year <= year);
+  return inYr.length ? inYr[inYr.length - 1].index : null;
 }

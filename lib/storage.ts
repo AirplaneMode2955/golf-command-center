@@ -7,7 +7,7 @@ export function loadSaved(): GolfData | null {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return null;
     const data = JSON.parse(raw) as GolfData;
-    return data?.v === 3 && Array.isArray(data.rounds) ? data : null;
+    return data?.v === 4 && Array.isArray(data.rounds) ? data : null;
   } catch {
     return null;
   }

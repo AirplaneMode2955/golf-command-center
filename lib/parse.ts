@@ -49,7 +49,8 @@ function toRound(r: RawRound, clubs: Map<string, string>): Round | null {
   const s = r.stats ?? {};
   const strokes = n(r.strokes);
   const toPar = n(r.score);
-  const hcp = r.roundHandicap == null ? NaN : Number(r.roundHandicap);
+  const rawDiff = typeof r.roundHandicap === 'string' ? r.roundHandicap.trim() : r.roundHandicap;
+  const diff = rawDiff == null || rawDiff === '' ? NaN : typeof rawDiff === 'string' && rawDiff.startsWith('+') ? -Number(rawDiff.slice(1)) : Number(rawDiff);
   const courseId = r.clubId?.id ?? 'unknown';
   return {
     id: r.id ?? `${r.timestamp}`,
@@ -63,7 +64,7 @@ function toRound(r: RawRound, clubs: Map<string, string>): Round | null {
     toPar,
     par: strokes - toPar,
     holeStrokes: r.holeStrokes,
-    handicap: Number.isFinite(hcp) ? hcp : null,
+    diff: Number.isFinite(diff) ? diff : null,
     eagles: n(s.aces) + n(s.doubleEagleOrBetter) + n(s.eagles),
     birdies: n(s.birdies),
     pars: n(s.pars),
@@ -96,5 +97,5 @@ export function parseArchive(json: unknown): GolfData {
     .map((f) => f.name)
     .filter((x): x is string => typeof x === 'string' && x.trim().length > 0);
 
-  return { v: 3, importedAt: Date.now(), rounds, friends };
+  return { v: 4, importedAt: Date.now(), rounds, friends };
 }

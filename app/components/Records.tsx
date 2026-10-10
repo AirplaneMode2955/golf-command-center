@@ -3,11 +3,12 @@
 import { useMemo } from 'react';
 import { records } from '@/lib/insights';
 import type { CourseSolve } from '@/lib/pars';
+import type { HcpPoint } from '@/lib/stats';
 import type { Round } from '@/lib/types';
 import { Card } from './ui';
 
-export function Records({ rounds, solves }: { rounds: Round[]; solves: Map<string, CourseSolve> }) {
-  const groups = useMemo(() => records(rounds, solves), [rounds, solves]);
+export function Records({ rounds, solves, hcp }: { rounds: Round[]; solves: Map<string, CourseSolve>; hcp: HcpPoint[] }) {
+  const groups = useMemo(() => records(rounds, solves, hcp), [rounds, solves, hcp]);
   if (groups.length === 0) return <div className="empty">No rounds to show.</div>;
 
   return (

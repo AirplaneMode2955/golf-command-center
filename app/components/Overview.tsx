@@ -1,6 +1,6 @@
 'use client';
 
-import { addDirection, byYear, fmtDate, fmtToPar, headline, perEighteen, pct, rolling, scoringMix, toPar18 } from '@/lib/stats';
+import { addDirection, byYear, fmtDate, fmtToPar, handicapSummary, headline, perEighteen, pct, rolling, scoringMix, toPar18, type HcpPoint } from '@/lib/stats';
 import type { Round } from '@/lib/types';
 import { Bars, TimeChart } from './charts';
 import { Card, Stat } from './ui';
@@ -14,7 +14,7 @@ const RESULTS = [
   { key: 'doubles', label: 'Double+' },
 ] as const;
 
-export function Overview({ rounds }: { rounds: Round[] }) {
+export function Overview({ rounds, hcp }: { rounds: Round[]; hcp: HcpPoint[] }) {
   if (rounds.length === 0) return <div className="empty">No rounds to show.</div>;
   const h = headline(rounds);
   const years = byYear(rounds);
@@ -31,16 +31,17 @@ export function Overview({ rounds }: { rounds: Round[] }) {
     tip: `${fmtDate(r.date)}  ${r.course}  ${r.strokes} (${fmtToPar(r.toPar)}) ${r.holes} holes`,
   }));
   const trend = rolling(dots, 10);
-  const hcp = rounds.filter((r) => r.handicap !== null).map((r) => ({ x: r.ts, y: r.handicap as number }));
+  const hs = handicapSummary(hcp);
+  const hcpPoints = hcp.map((p) => ({ x: p.ts, y: p.index }));
 
   return (
     <div className="stack">
       <div className="grid g4">
         <Stat label="Rounds" value={h.total} note={`${h.count18} of 18 holes, ${h.count9} of 9, ${h.courses} courses`} />
         <Stat
-          label="Handicap now"
-          value={h.handicapNow ?? 'n/a'}
-          note={h.handicapLow !== null ? `Low ${h.handicapLow} on ${fmtDate(h.handicapLowDate as string)}` : undefined}
+          label="Handicap index"
+          value={hs ? hs.now.index : 'n/a'}
+          note={hs ? `Low ${hs.low.index} on ${fmtDate(hs.low.date)}` : undefined}
         />
         <Stat label="Best 18 holes" value={h.best ? h.best.strokes : 'n/a'} note={h.best ? `${h.best.course}, ${fmtDate(h.best.date)}` : undefined} />
         <Stat
@@ -118,8 +119,8 @@ export function Overview({ rounds }: { rounds: Round[] }) {
       </div>
 
       <div className="grid g2">
-        <Card title="Handicap" hint="Your handicap as recorded after each round.">
-          <TimeChart label="Handicap over time" series={[{ points: hcp, kind: 'line', color: 'var(--warn)' }]} fmtY={(v) => v.toFixed(0)} height={200} />
+        <Card title="Handicap index" hint="Rebuilt from your rounds: the average of your best 8 differentials out of the last 20, the same method 18Birdies uses.">
+          <TimeChart label="Handicap index over time" series={[{ points: hcpPoints, kind: 'line', color: 'var(--warn)' }]} fmtY={(v) => v.toFixed(0)} height={200} />
         </Card>
         <Card title="Rounds per year">
           <Bars label="Rounds per year" items={years.map((y) => ({ label: String(y.year), value: y.rounds }))} />

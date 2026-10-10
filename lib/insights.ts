@@ -1,5 +1,5 @@
 import { placedRounds, type CourseSolve } from './pars';
-import { avg, byYear, courses, fmtDate, fmtToPar, toPar18 } from './stats';
+import { avg, byYear, courses, fmtDate, fmtToPar, handicapSummary, toPar18, type HcpPoint } from './stats';
 import type { Round } from './types';
 
 /* ------------------------------------------------------------------ */
@@ -113,7 +113,7 @@ function longestRun<T>(items: T[], ok: (x: T) => boolean): { len: number; start:
   return best;
 }
 
-export function records(rounds: Round[], solves: Map<string, CourseSolve>): RecordGroup[] {
+export function records(rounds: Round[], solves: Map<string, CourseSolve>, hcp: HcpPoint[]): RecordGroup[] {
   if (rounds.length === 0) return [];
   const r18 = rounds.filter((r) => r.holes === 18);
   const groups: RecordGroup[] = [];
@@ -227,11 +227,9 @@ export function records(rounds: Round[], solves: Map<string, CourseSolve>): Reco
   const top = courses(rounds)[0];
   if (top) habits.push({ key: 'home', label: 'Most played course', value: String(top.rounds), sub: top.name });
 
-  const withH = rounds.filter((r) => r.handicap !== null);
-  if (withH.length) {
-    const lo = withH.reduce((b, r) => ((r.handicap as number) < (b.handicap as number) ? r : b));
-    const hi = withH.reduce((b, r) => ((r.handicap as number) > (b.handicap as number) ? r : b));
-    habits.push({ key: 'hcp', label: 'Lowest handicap', value: String(lo.handicap), sub: `${fmtDate(lo.date)} (high was ${hi.handicap} in ${hi.year})` });
+  const hs = handicapSummary(hcp);
+  if (hs) {
+    habits.push({ key: 'hcp', label: 'Lowest handicap index', value: String(hs.low.index), sub: `${fmtDate(hs.low.date)} (high was ${hs.high.index} in ${hs.high.year})` });
   }
   groups.push({ title: 'Habits', items: habits });
 

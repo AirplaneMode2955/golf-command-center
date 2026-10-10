@@ -3,12 +3,12 @@
 import { useMemo } from 'react';
 import { shotsLost } from '@/lib/insights';
 import { holeEntries, type CourseSolve } from '@/lib/pars';
-import { avg, byYear } from '@/lib/stats';
+import { avg, byYear, indexAtYearEnd, type HcpPoint } from '@/lib/stats';
 import type { Round } from '@/lib/types';
 import { Diverging } from './charts';
 import { Card, Stat } from './ui';
 
-export function Game({ rounds, solves }: { rounds: Round[]; solves: Map<string, CourseSolve> }) {
+export function Game({ rounds, solves, hcp }: { rounds: Round[]; solves: Map<string, CourseSolve>; hcp: HcpPoint[] }) {
   const sl = useMemo(() => shotsLost(rounds, solves), [rounds, solves]);
   if (rounds.length === 0) return <div className="empty">No rounds to show.</div>;
   const years = byYear(rounds);
@@ -139,7 +139,7 @@ export function Game({ rounds, solves }: { rounds: Round[]; solves: Map<string, 
               <span className="end num" style={{ width: 64 }}>{y.rounds}</span>
               <span className="end num" style={{ width: 64 }}>{y.avg18 !== null ? y.avg18.toFixed(1) : '-'}</span>
               <span className="end num" style={{ width: 64 }}>{y.best18 ?? '-'}</span>
-              <span className="end num" style={{ width: 56 }}>{y.hcp ?? '-'}</span>
+              <span className="end num" style={{ width: 56 }}>{indexAtYearEnd(hcp, y.year) ?? '-'}</span>
             </div>
           ))}
         </div>

@@ -14,7 +14,11 @@ export type Round = {
   toPar: number;
   par: number;
   holeStrokes: number[];
-  handicap: number | null;
+  /**
+   * This round's score differential, as 18Birdies stores it in `roundHandicap`. A "+" value in the file means better
+   * than scratch, so it is negative here. It is NOT a handicap index; see handicapSeries in stats.ts.
+   */
+  diff: number | null;
   eagles: number; // eagle or better
   birdies: number;
   pars: number;
@@ -27,7 +31,7 @@ export type Round = {
 };
 
 export type GolfData = {
-  v: 3;
+  v: 4;
   importedAt: number;
   rounds: Round[];
   friends: string[];
